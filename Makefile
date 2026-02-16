@@ -16,4 +16,4 @@ clean:
 	rm -f *.tex *.pdf *.aux *.log
 
 run: build
-	./genetic_series -target $(TARGET) -strategy $(STRATEGY) -pool $(POOL) -population 1000 -generations $(GENERATIONS) -maxterms 512 -seed 0 -workers $(WORKERS)
+	GOMAXPROCS=$(WORKERS) ./genetic_series -target $(TARGET) -strategy $(STRATEGY) -pool $(POOL) -population 1000 -generations $(GENERATIONS) -maxterms 512 -seed 0 -workers $(WORKERS)

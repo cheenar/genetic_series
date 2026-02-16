@@ -356,6 +356,16 @@ func TestSimplify(t *testing.T) {
 			&UnaryNode{Op: OpDoubleFactorial, Child: &ConstNode{Val: 5}},
 			"15",
 		},
+		{
+			"MinInt64 add no crash",
+			&BinaryNode{Op: OpAdd, Left: &VarNode{}, Right: &ConstNode{Val: math.MinInt64}},
+			"(n + -9223372036854775808)",
+		},
+		{
+			"MinInt64 sub no crash",
+			&BinaryNode{Op: OpSub, Left: &VarNode{}, Right: &ConstNode{Val: math.MinInt64}},
+			"(n - -9223372036854775808)",
+		},
 	}
 
 	for _, tc := range tests {

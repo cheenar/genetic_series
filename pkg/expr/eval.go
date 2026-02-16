@@ -307,7 +307,7 @@ func bigPow(base, exp *big.Float, prec uint) (*big.Float, bool) {
 }
 
 func intPow(base *big.Float, exp int64, prec uint) (*big.Float, bool) {
-	if exp > 200 {
+	if exp > 20 {
 		return nil, false
 	}
 	result := new(big.Float).SetPrec(prec).SetInt64(1)
@@ -324,7 +324,7 @@ func intPow(base *big.Float, exp int64, prec uint) (*big.Float, bool) {
 
 func bigBinomial(nf, kf *big.Float, prec uint) (*big.Float, bool) {
 	n, ok := toInt64(nf)
-	if !ok || n < 0 {
+	if !ok || n < 0 || n > 1000 {
 		return nil, false
 	}
 	k, ok := toInt64(kf)

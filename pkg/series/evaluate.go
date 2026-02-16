@@ -15,7 +15,7 @@ type EvalResult struct {
 }
 
 // evalTimeout is the maximum time allowed for evaluating a single candidate.
-const evalTimeout = 2 * time.Second
+const evalTimeout = 100 * time.Millisecond
 
 // EvaluateCandidate computes the partial sum of a candidate series up to maxTerms,
 // using checkpoints at powers of 2 for convergence detection.
@@ -31,8 +31,7 @@ func EvaluateCandidate(c *Candidate, maxTerms int64, prec uint) EvalResult {
 	deadline := time.Now().Add(evalTimeout)
 
 	for i := c.Start; i < c.Start+maxTerms; i++ {
-		// Check timeout every 64 terms to avoid syscall overhead
-		if i&63 == 0 && time.Now().After(deadline) {
+		if time.Now().After(deadline) {
 			return EvalResult{OK: false}
 		}
 

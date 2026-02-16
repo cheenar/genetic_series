@@ -5,11 +5,15 @@ import (
 	"math/big"
 )
 
+// maxRecurseDepth caps recursion in simplification to prevent stack overflow
+// on pathologically deep trees produced by crossover.
+const maxRecurseDepth = 100
+
 // Simplify applies rewrite rules to reduce an expression tree.
 // It repeatedly applies rules until no further changes occur.
 func Simplify(node ExprNode) ExprNode {
 	for i := 0; i < 20; i++ { // cap iterations
-		next := simplifyOnce(node)
+		next := simplifyD(node, 0)
 		if next.String() == node.String() {
 			return next
 		}
@@ -18,13 +22,17 @@ func Simplify(node ExprNode) ExprNode {
 	return node
 }
 
-func simplifyOnce(node ExprNode) ExprNode {
+func simplifyD(node ExprNode, depth int) ExprNode {
+	if depth > maxRecurseDepth {
+		return node
+	}
+
 	switch n := node.(type) {
 	case *VarNode, *ConstNode:
 		return node
 
 	case *UnaryNode:
-		child := simplifyOnce(n.Child)
+		child := simplifyD(n.Child, depth+1)
 
 		// Double negation: -(-x) = x
 		if n.Op == OpNeg {
@@ -33,9 +41,9 @@ func simplifyOnce(node ExprNode) ExprNode {
 			}
 		}
 
-		// Neg of const: -(k) = -k
+		// Neg of const: -(k) = -k (guard: -MinInt64 overflows)
 		if n.Op == OpNeg {
-			if c, ok := child.(*ConstNode); ok {
+			if c, ok := child.(*ConstNode); ok && (c.Val > math.MinInt64) {
 				return &ConstNode{Val: -c.Val}
 			}
 		}
@@ -95,8 +103,8 @@ func simplifyOnce(node ExprNode) ExprNode {
 		return &UnaryNode{Op: n.Op, Child: child}
 
 	case *BinaryNode:
-		left := simplifyOnce(n.Left)
-		right := simplifyOnce(n.Right)
+		left := simplifyD(n.Left, depth+1)
+		right := simplifyD(n.Right, depth+1)
 
 		lc, lok := left.(*ConstNode)
 		rc, rok := right.(*ConstNode)
@@ -118,13 +126,13 @@ func simplifyOnce(node ExprNode) ExprNode {
 			if lok && lc.Val == 0 {
 				return right
 			}
-			// x + (-k) = x - k
-			if rok && rc.Val < 0 {
-				return simplifyOnce(&BinaryNode{Op: OpSub, Left: left, Right: &ConstNode{Val: -rc.Val}})
+			// x + (-k) = x - k (guard: -MinInt64 overflows back to negative)
+			if rok && rc.Val < 0 && -rc.Val > 0 {
+				return simplifyD(&BinaryNode{Op: OpSub, Left: left, Right: &ConstNode{Val: -rc.Val}}, depth+1)
 			}
 			// x + neg(y) = x - y
 			if ru, ok := right.(*UnaryNode); ok && ru.Op == OpNeg {
-				return simplifyOnce(&BinaryNode{Op: OpSub, Left: left, Right: ru.Child})
+				return simplifyD(&BinaryNode{Op: OpSub, Left: left, Right: ru.Child}, depth+1)
 			}
 
 		case OpSub:
@@ -134,15 +142,15 @@ func simplifyOnce(node ExprNode) ExprNode {
 			}
 			// 0 - x = -x
 			if lok && lc.Val == 0 {
-				return simplifyOnce(&UnaryNode{Op: OpNeg, Child: right})
+				return simplifyD(&UnaryNode{Op: OpNeg, Child: right}, depth+1)
 			}
-			// x - (-k) = x + k
-			if rok && rc.Val < 0 {
-				return simplifyOnce(&BinaryNode{Op: OpAdd, Left: left, Right: &ConstNode{Val: -rc.Val}})
+			// x - (-k) = x + k (guard: -MinInt64 overflows back to negative)
+			if rok && rc.Val < 0 && -rc.Val > 0 {
+				return simplifyD(&BinaryNode{Op: OpAdd, Left: left, Right: &ConstNode{Val: -rc.Val}}, depth+1)
 			}
 			// x - neg(y) = x + y
 			if ru, ok := right.(*UnaryNode); ok && ru.Op == OpNeg {
-				return simplifyOnce(&BinaryNode{Op: OpAdd, Left: left, Right: ru.Child})
+				return simplifyD(&BinaryNode{Op: OpAdd, Left: left, Right: ru.Child}, depth+1)
 			}
 			// x - x = 0 (structural equality)
 			if left.String() == right.String() {
@@ -167,11 +175,11 @@ func simplifyOnce(node ExprNode) ExprNode {
 			}
 			// x * (-1) = -x
 			if rok && rc.Val == -1 {
-				return simplifyOnce(&UnaryNode{Op: OpNeg, Child: left})
+				return simplifyD(&UnaryNode{Op: OpNeg, Child: left}, depth+1)
 			}
 			// (-1) * x = -x
 			if lok && lc.Val == -1 {
-				return simplifyOnce(&UnaryNode{Op: OpNeg, Child: right})
+				return simplifyD(&UnaryNode{Op: OpNeg, Child: right}, depth+1)
 			}
 
 		case OpDiv:
@@ -266,6 +274,14 @@ func SimplifyBigFloat(node ExprNode, prec uint) ExprNode {
 }
 
 func foldConstantSubtrees(node ExprNode, prec uint) ExprNode {
+	return foldConstantSubtreesD(node, prec, 0)
+}
+
+func foldConstantSubtreesD(node ExprNode, prec uint, depth int) ExprNode {
+	if depth > maxRecurseDepth {
+		return node
+	}
+
 	if !containsVar(node) {
 		dummyN := new(big.Float).SetPrec(prec).SetInt64(0)
 		if val, ok := node.Eval(dummyN, prec); ok {
@@ -285,11 +301,11 @@ func foldConstantSubtrees(node ExprNode, prec uint) ExprNode {
 
 	switch n := node.(type) {
 	case *UnaryNode:
-		return &UnaryNode{Op: n.Op, Child: foldConstantSubtrees(n.Child, prec)}
+		return &UnaryNode{Op: n.Op, Child: foldConstantSubtreesD(n.Child, prec, depth+1)}
 	case *BinaryNode:
 		return &BinaryNode{Op: n.Op,
-			Left:  foldConstantSubtrees(n.Left, prec),
-			Right: foldConstantSubtrees(n.Right, prec),
+			Left:  foldConstantSubtreesD(n.Left, prec, depth+1),
+			Right: foldConstantSubtreesD(n.Right, prec, depth+1),
 		}
 	default:
 		return node
@@ -302,15 +318,22 @@ func ContainsVar(node ExprNode) bool {
 }
 
 func containsVar(node ExprNode) bool {
+	return containsVarD(node, 0)
+}
+
+func containsVarD(node ExprNode, depth int) bool {
+	if depth > maxRecurseDepth {
+		return true // assume variable present to be safe (won't fold)
+	}
 	switch n := node.(type) {
 	case *VarNode:
 		return true
 	case *ConstNode:
 		return false
 	case *UnaryNode:
-		return containsVar(n.Child)
+		return containsVarD(n.Child, depth+1)
 	case *BinaryNode:
-		return containsVar(n.Left) || containsVar(n.Right)
+		return containsVarD(n.Left, depth+1) || containsVarD(n.Right, depth+1)
 	default:
 		return false
 	}
