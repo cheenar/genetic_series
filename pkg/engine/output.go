@@ -58,6 +58,8 @@ func WriteAttemptSummary(w io.Writer, a AttemptResult) {
 		a.Attempt, a.Generations, a.BestFitness.CorrectDigits, a.BestCandidate)
 }
 
+const maxHallOfFame = 100
+
 // sortByDigits returns a copy of attempts sorted by CorrectDigits descending.
 func sortByDigits(attempts []AttemptResult) []AttemptResult {
 	sorted := make([]AttemptResult, len(attempts))
@@ -74,6 +76,9 @@ func sortByDigits(attempts []AttemptResult) []AttemptResult {
 // WriteHallOfFame writes the sorted hall of fame across attempts.
 func WriteHallOfFame(w io.Writer, attempts []AttemptResult) {
 	sorted := sortByDigits(attempts)
+	if len(sorted) > maxHallOfFame {
+		sorted = sorted[:maxHallOfFame]
+	}
 	fmt.Fprintln(w, "\n--- Hall of Fame ---")
 	for i, a := range sorted {
 		fmt.Fprintf(w, "  #%d: [attempt %d, gen %d] %5.1f digits | %s\n",
@@ -113,6 +118,9 @@ func latexEscape(s string) string {
 // WriteHallOfFameLatex writes a compilable LaTeX document of the hall of fame.
 func WriteHallOfFameLatex(w io.Writer, attempts []AttemptResult, cfg Config, targetValue *big.Float) {
 	sorted := sortByDigits(attempts)
+	if len(sorted) > maxHallOfFame {
+		sorted = sorted[:maxHallOfFame]
+	}
 
 	targetStr := targetValue.Text('g', 50)
 
