@@ -215,6 +215,14 @@ func simplifyD(node ExprNode, depth int) ExprNode {
 			}
 		}
 
+		// Canonicalize commutative ops: sort children so equivalent
+		// expressions like (n + 21) and (21 + n) get the same string.
+		if n.Op == OpAdd || n.Op == OpMul {
+			if left.String() > right.String() {
+				left, right = right, left
+			}
+		}
+
 		return &BinaryNode{Op: n.Op, Left: left, Right: right}
 
 	default:

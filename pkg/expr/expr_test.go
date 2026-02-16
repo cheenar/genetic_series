@@ -339,7 +339,7 @@ func TestSimplify(t *testing.T) {
 		{
 			"x - (-5) = x + 5",
 			&BinaryNode{Op: OpSub, Left: &VarNode{}, Right: &ConstNode{Val: -5}},
-			"(n + 5)",
+			"(5 + n)",
 		},
 		{
 			"x + (-3) = x - 3",
@@ -359,7 +359,7 @@ func TestSimplify(t *testing.T) {
 		{
 			"MinInt64 add no crash",
 			&BinaryNode{Op: OpAdd, Left: &VarNode{}, Right: &ConstNode{Val: math.MinInt64}},
-			"(n + -9223372036854775808)",
+			"(-9223372036854775808 + n)",
 		},
 		{
 			"MinInt64 sub no crash",

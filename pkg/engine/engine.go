@@ -62,6 +62,7 @@ func (e *Engine) Run() FinalReport {
 	var genReports []GenerationReport
 	totalGensUsed := 0
 	attempt := 0
+	tabuSet := map[string]bool{}
 
 	// Track best across all attempts
 	var globalBest *series.Candidate
@@ -92,7 +93,7 @@ func (e *Engine) Run() FinalReport {
 		attemptGens := 0
 
 		for unlimited || totalGensUsed < e.cfg.Generations {
-			fitnesses, results := e.evaluatePopulation(population)
+			fitnesses, results := e.evaluatePopulation(population, tabuSet)
 
 			// Find best and second-best in this generation
 			bestIdx, secondIdx := 0, -1
@@ -205,6 +206,15 @@ func (e *Engine) Run() FinalReport {
 		}
 		hallOfFame = append(hallOfFame, ar)
 
+		// Add best candidate to tabu set so future restarts avoid it
+		if bestThisAttempt != nil {
+			s := bestThisAttempt.String()
+			if !tabuSet[s] {
+				tabuSet[s] = true
+				fmt.Fprintf(os.Stderr, "Tabu: added %q\n", s)
+			}
+		}
+
 		// Update global best
 		if bestThisAttempt != nil && bestThisAttemptFitness.Combined > globalBestFitness.Combined {
 			globalBest = bestThisAttempt
@@ -264,10 +274,16 @@ func (e *Engine) Run() FinalReport {
 		}
 	}
 
+	// Dedup and cap attempts for the JSON report
+	dedupedAttempts := dedupAttempts(sortByDigits(hallOfFame))
+	if len(dedupedAttempts) > maxHallOfFame {
+		dedupedAttempts = dedupedAttempts[:maxHallOfFame]
+	}
+
 	finalReport := FinalReport{
 		Config:      e.cfg,
 		BestFitness: globalBestFitness,
-		Attempts:    hallOfFame,
+		Attempts:    dedupedAttempts,
 	}
 
 	if e.cfg.Verbose {
@@ -289,15 +305,21 @@ func (e *Engine) Run() FinalReport {
 // float64 fast path when F64PromotionThreshold > 0. Phase 1 evaluates all
 // candidates at float64 speed. Phase 2 promotes only candidates that cleared
 // the digit threshold to the expensive big.Float path.
-func (e *Engine) evaluatePopulation(pop []*series.Candidate) ([]series.Fitness, []series.EvalResult) {
+func (e *Engine) evaluatePopulation(pop []*series.Candidate, tabuSet map[string]bool) ([]series.Fitness, []series.EvalResult) {
 	n := len(pop)
 	fitnesses := make([]series.Fitness, n)
 	results := make([]series.EvalResult, n)
 
+	// Pre-compute string representations once for tabu lookups.
+	strs := make([]string, n)
+	for i, c := range pop {
+		strs[i] = c.String()
+	}
+
 	threshold := e.cfg.F64PromotionThreshold
 	if threshold <= 0 {
 		// Disabled — fall through to big.Float for everyone.
-		e.evaluateBigFloat(pop, fitnesses, results, nil)
+		e.evaluateBigFloat(pop, fitnesses, results, nil, tabuSet, strs)
 		return fitnesses, results
 	}
 
@@ -312,6 +334,7 @@ func (e *Engine) evaluatePopulation(pop []*series.Candidate) ([]series.Fitness, 
 	type job struct {
 		idx       int
 		candidate *series.Candidate
+		str       string
 	}
 
 	jobs := make(chan job, n)
@@ -322,6 +345,10 @@ func (e *Engine) evaluatePopulation(pop []*series.Candidate) ([]series.Fitness, 
 		go func() {
 			defer wg.Done()
 			for j := range jobs {
+				if tabuSet[j.str] {
+					fitnesses[j.idx] = series.WorstFitness()
+					continue
+				}
 				r64 := series.EvaluateCandidateF64(j.candidate, e.cfg.MaxTerms)
 				f64 := series.ComputeFitnessF64(j.candidate, r64, e.targetF64, e.cfg.Weights)
 				fitnesses[j.idx] = f64
@@ -333,20 +360,21 @@ func (e *Engine) evaluatePopulation(pop []*series.Candidate) ([]series.Fitness, 
 	}
 
 	for i, c := range pop {
-		jobs <- job{idx: i, candidate: c}
+		jobs <- job{idx: i, candidate: c, str: strs[i]}
 	}
 	close(jobs)
 	wg.Wait()
 
 	// Phase 2: big.Float eval for promoted candidates only.
-	e.evaluateBigFloat(pop, fitnesses, results, promote)
+	e.evaluateBigFloat(pop, fitnesses, results, promote, tabuSet, strs)
 
 	return fitnesses, results
 }
 
 // evaluateBigFloat runs big.Float evaluation on selected candidates.
 // If promote is nil, all candidates are evaluated. Otherwise only promote[i]==true.
-func (e *Engine) evaluateBigFloat(pop []*series.Candidate, fitnesses []series.Fitness, results []series.EvalResult, promote []bool) {
+// strs contains pre-computed String() representations for tabu lookups.
+func (e *Engine) evaluateBigFloat(pop []*series.Candidate, fitnesses []series.Fitness, results []series.EvalResult, promote []bool, tabuSet map[string]bool, strs []string) {
 	workers := e.cfg.Workers
 	if workers <= 0 {
 		workers = 1
@@ -355,6 +383,7 @@ func (e *Engine) evaluateBigFloat(pop []*series.Candidate, fitnesses []series.Fi
 	type job struct {
 		idx       int
 		candidate *series.Candidate
+		str       string
 	}
 
 	jobs := make(chan job, len(pop))
@@ -365,6 +394,10 @@ func (e *Engine) evaluateBigFloat(pop []*series.Candidate, fitnesses []series.Fi
 		go func() {
 			defer wg.Done()
 			for j := range jobs {
+				if tabuSet[j.str] {
+					fitnesses[j.idx] = series.WorstFitness()
+					continue
+				}
 				result := series.EvaluateCandidate(j.candidate, e.cfg.MaxTerms, e.cfg.Precision)
 				fitness := series.ComputeFitness(j.candidate, result, e.target, e.cfg.Weights)
 				results[j.idx] = result
@@ -375,7 +408,7 @@ func (e *Engine) evaluateBigFloat(pop []*series.Candidate, fitnesses []series.Fi
 
 	for i, c := range pop {
 		if promote == nil || promote[i] {
-			jobs <- job{idx: i, candidate: c}
+			jobs <- job{idx: i, candidate: c, str: strs[i]}
 		}
 	}
 	close(jobs)

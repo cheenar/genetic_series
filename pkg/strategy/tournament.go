@@ -10,10 +10,11 @@ import (
 )
 
 const (
-	tournamentMaxDepth = 4
-	tournamentSize     = 5
-	eliteRate          = 0.05 // top 5% carried over
-	mutationRate       = 0.8  // probability of mutation after crossover
+	tournamentMaxDepth      = 4
+	tournamentSize          = 5
+	eliteRate               = 0.05 // top 5% carried over
+	mutationRate            = 0.8  // probability of mutation after crossover
+	tournamentInjectionRate = 0.05 // fraction of non-elite slots replaced with random each gen
 )
 
 func init() {
@@ -93,6 +94,16 @@ func (s *TournamentStrategy) Evolve(
 				next = append(next, randomCandidate(p, rng, tournamentMaxDepth))
 			}
 		}
+	}
+
+	// Random injection: replace some non-elite slots with fresh candidates
+	injectionCount := int(float64(n) * tournamentInjectionRate)
+	if injectionCount < 1 {
+		injectionCount = 1
+	}
+	for i := 0; i < injectionCount; i++ {
+		idx := eliteCount + rng.Intn(n-eliteCount)
+		next[idx] = randomCandidate(p, rng, tournamentMaxDepth)
 	}
 
 	return next[:n]

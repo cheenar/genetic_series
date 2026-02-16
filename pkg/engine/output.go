@@ -73,9 +73,25 @@ func sortByDigits(attempts []AttemptResult) []AttemptResult {
 	return sorted
 }
 
+// dedupAttempts removes duplicate candidates, keeping only the first (best) entry
+// for each unique BestCandidate string. Input must already be sorted by quality descending.
+func dedupAttempts(sorted []AttemptResult) []AttemptResult {
+	seen := map[string]bool{}
+	result := make([]AttemptResult, 0, len(sorted))
+	for _, a := range sorted {
+		if seen[a.BestCandidate] {
+			continue
+		}
+		seen[a.BestCandidate] = true
+		result = append(result, a)
+	}
+	return result
+}
+
 // WriteHallOfFame writes the sorted hall of fame across attempts.
 func WriteHallOfFame(w io.Writer, attempts []AttemptResult) {
 	sorted := sortByDigits(attempts)
+	sorted = dedupAttempts(sorted)
 	if len(sorted) > maxHallOfFame {
 		sorted = sorted[:maxHallOfFame]
 	}
@@ -118,6 +134,7 @@ func latexEscape(s string) string {
 // WriteHallOfFameLatex writes a compilable LaTeX document of the hall of fame.
 func WriteHallOfFameLatex(w io.Writer, attempts []AttemptResult, cfg Config, targetValue *big.Float) {
 	sorted := sortByDigits(attempts)
+	sorted = dedupAttempts(sorted)
 	if len(sorted) > maxHallOfFame {
 		sorted = sorted[:maxHallOfFame]
 	}
