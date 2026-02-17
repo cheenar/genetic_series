@@ -83,11 +83,7 @@ func (u *UnaryNode) Eval(n *big.Float, prec uint) (*big.Float, bool) {
 		if child.Sign() < 0 {
 			return nil, false
 		}
-		f, _ := child.Float64()
-		if math.IsInf(f, 0) || math.IsNaN(f) {
-			return nil, false
-		}
-		return new(big.Float).SetPrec(prec).SetFloat64(math.Sqrt(f)), true
+		return bigSqrt(child, prec), true
 
 	default:
 		return nil, false
@@ -275,6 +271,30 @@ func bigFibonacci(f *big.Float, prec uint) (*big.Float, bool) {
 	return new(big.Float).SetPrec(prec).SetInt(v), true
 }
 
+// bigSqrt computes sqrt(x) to full precision using Newton's method.
+func bigSqrt(x *big.Float, prec uint) *big.Float {
+	if x.Sign() == 0 {
+		return new(big.Float).SetPrec(prec)
+	}
+	// Initial guess from float64.
+	f, _ := x.Float64()
+	guess := new(big.Float).SetPrec(prec).SetFloat64(math.Sqrt(f))
+
+	// Newton iteration: g' = (g + x/g) / 2
+	// Converges quadratically, so ~log2(prec) iterations suffice.
+	two := new(big.Float).SetPrec(prec).SetInt64(2)
+	for i := 0; i < 64; i++ {
+		quo := new(big.Float).SetPrec(prec).Quo(x, guess)
+		next := new(big.Float).SetPrec(prec).Add(guess, quo)
+		next.Quo(next, two)
+		if next.Cmp(guess) == 0 {
+			break
+		}
+		guess = next
+	}
+	return guess
+}
+
 func bigPow(base, exp *big.Float, prec uint) (*big.Float, bool) {
 	// For integer exponents, use repeated multiplication
 	ei, ok := toInt64(exp)
@@ -307,7 +327,7 @@ func bigPow(base, exp *big.Float, prec uint) (*big.Float, bool) {
 }
 
 func intPow(base *big.Float, exp int64, prec uint) (*big.Float, bool) {
-	if exp > 20 {
+	if exp > 10000 {
 		return nil, false
 	}
 	result := new(big.Float).SetPrec(prec).SetInt64(1)

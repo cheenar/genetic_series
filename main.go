@@ -30,6 +30,7 @@ func main() {
 	flag.IntVar(&cfg.Workers, "workers", cfg.Workers, "number of parallel workers")
 	flag.IntVar(&cfg.StagnationLimit, "stagnation", cfg.StagnationLimit, "generations without improvement before restart")
 	flag.Float64Var(&cfg.F64PromotionThreshold, "f64threshold", cfg.F64PromotionThreshold, "min float64 digits to promote to big.Float (0 = disabled)")
+	flag.StringVar(&cfg.SeedFormula, "seed-formula", "", "LaTeX seed formula for constant-tuning strategy")
 	flag.StringVar(&outdir, "outdir", outdir, "output directory for generated files")
 	flag.Parse()
 

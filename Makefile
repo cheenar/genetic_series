@@ -8,6 +8,7 @@ WORKERS ?= 0
 
 build:
 	go build -o genetic_series .
+	go build -o eval ./cmd/eval/
 
 test:
 	go test ./...

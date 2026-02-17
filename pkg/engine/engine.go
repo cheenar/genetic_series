@@ -36,6 +36,21 @@ func New(cfg Config) (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// If a seed formula was provided, pass it to the strategy.
+	if cfg.SeedFormula != "" {
+		type seedable interface {
+			SetSeedFormula(string) error
+		}
+		if ss, ok := s.(seedable); ok {
+			if err := ss.SetSeedFormula(cfg.SeedFormula); err != nil {
+				return nil, fmt.Errorf("invalid seed formula: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("strategy %q does not support -seed-formula", cfg.Strategy)
+		}
+	}
+
 	c := constants.Get(cfg.Target)
 	if c == nil {
 		return nil, fmt.Errorf("unknown target constant: %s (available: %v)", cfg.Target, constants.Names())

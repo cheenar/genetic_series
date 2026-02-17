@@ -25,6 +25,7 @@ type Config struct {
 	StagnationLimit       int
 	OutDir                string
 	F64PromotionThreshold float64 // min float64 digits to promote to big.Float (0 = disabled)
+	SeedFormula           string  // LaTeX formula for constant-tuning (empty = normal init)
 }
 
 // DefaultConfig returns a config with sensible defaults.
