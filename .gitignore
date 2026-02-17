@@ -1,5 +1,6 @@
 # Build output
 genetic_series
+eval
 
 # LaTeX output
 *.tex
