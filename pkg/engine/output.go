@@ -73,16 +73,25 @@ func sortByDigits(attempts []AttemptResult) []AttemptResult {
 	return sorted
 }
 
-// dedupAttempts removes duplicate candidates, keeping only the first (best) entry
-// for each unique BestCandidate string. Input must already be sorted by quality descending.
+// dedupAttempts removes duplicate candidates, keeping only the first (best) entry.
+// Deduplicates on both the candidate string AND the partial sum value, so algebraically
+// equivalent formulas with different tree structures are also caught.
+// Input must already be sorted by quality descending.
 func dedupAttempts(sorted []AttemptResult) []AttemptResult {
-	seen := map[string]bool{}
+	seenExpr := map[string]bool{}
+	seenSum := map[string]bool{}
 	result := make([]AttemptResult, 0, len(sorted))
 	for _, a := range sorted {
-		if seen[a.BestCandidate] {
+		if seenExpr[a.BestCandidate] {
 			continue
 		}
-		seen[a.BestCandidate] = true
+		if a.BestPartialSum != "" && seenSum[a.BestPartialSum] {
+			continue
+		}
+		seenExpr[a.BestCandidate] = true
+		if a.BestPartialSum != "" {
+			seenSum[a.BestPartialSum] = true
+		}
 		result = append(result, a)
 	}
 	return result
