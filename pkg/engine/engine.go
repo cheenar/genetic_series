@@ -73,7 +73,7 @@ func New(cfg Config) (*Engine, error) {
 
 // Run executes the evolutionary loop and returns the final report.
 func (e *Engine) Run() FinalReport {
-	run_timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	runTimestamp := fmt.Sprintf("%d", time.Now().Unix())
 	var hallOfFame []AttemptResult
 	var genReports []GenerationReport
 	totalGensUsed := 0
@@ -91,7 +91,7 @@ func (e *Engine) Run() FinalReport {
 		genBudget = fmt.Sprintf("%d", e.cfg.Generations)
 	}
 	fmt.Fprintf(os.Stderr, "Timestamp: [%s] Starting target %s, pool %s, strategy %s, population %d, %s gen budget, stagnation %d, workers %d, seed %d\n",
-		run_timestamp, e.cfg.Target, e.cfg.Pool, e.cfg.Strategy, e.cfg.Population, genBudget, e.cfg.StagnationLimit, e.cfg.Workers, e.cfg.Seed)
+		runTimestamp, e.cfg.Target, e.cfg.Pool, e.cfg.Strategy, e.cfg.Population, genBudget, e.cfg.StagnationLimit, e.cfg.Workers, e.cfg.Seed)
 
 	unlimited := e.cfg.Generations <= 0
 	for unlimited || totalGensUsed < e.cfg.Generations {
@@ -242,7 +242,7 @@ func (e *Engine) Run() FinalReport {
 
 		// Write LaTeX hall of fame after each attempt so it survives Ctrl+C
 		if e.cfg.OutDir != "" {
-			base := fmt.Sprintf("%s_%s_%s_%s", e.cfg.Target, e.cfg.Pool, e.cfg.Strategy, run_timestamp)
+			base := fmt.Sprintf("%s_%s_%s_%s", e.cfg.Target, e.cfg.Pool, e.cfg.Strategy, runTimestamp)
 			tmpDir := os.TempDir()
 			tmpTex := filepath.Join(tmpDir, base+".tex")
 
