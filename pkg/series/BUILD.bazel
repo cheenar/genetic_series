@@ -1,0 +1,24 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "series",
+    srcs = [
+        "candidate.go",
+        "evaluate.go",
+        "fitness.go",
+        "parse_latex.go",
+    ],
+    importpath = "github.com/wildfunctions/genetic_series/pkg/series",
+    visibility = ["//visibility:public"],
+    deps = ["//pkg/expr"],
+)
+
+go_test(
+    name = "series_test",
+    srcs = [
+        "parse_latex_test.go",
+        "series_test.go",
+    ],
+    embed = [":series"],
+    deps = ["//pkg/expr"],
+)

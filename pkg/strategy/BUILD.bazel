@@ -1,0 +1,30 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "strategy",
+    srcs = [
+        "consttune.go",
+        "crossover.go",
+        "hillclimb.go",
+        "mutation.go",
+        "strategy.go",
+        "tournament.go",
+    ],
+    importpath = "github.com/wildfunctions/genetic_series/pkg/strategy",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/expr",
+        "//pkg/pool",
+        "//pkg/series",
+    ],
+)
+
+go_test(
+    name = "strategy_test",
+    srcs = ["strategy_test.go"],
+    embed = [":strategy"],
+    deps = [
+        "//pkg/pool",
+        "//pkg/series",
+    ],
+)

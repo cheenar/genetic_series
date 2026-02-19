@@ -254,7 +254,11 @@ func (e *Engine) Run() FinalReport {
 				f.Close()
 
 				// Compile to PDF if pdflatex is available
-				if pdflatex, err := exec.LookPath("pdflatex"); err == nil {
+				pdflatex := os.Getenv("PDFLATEX_PATH")
+				if pdflatex == "" {
+					pdflatex, _ = exec.LookPath("pdflatex")
+				}
+				if pdflatex != "" {
 					cmd := exec.Command(pdflatex, "-interaction=nonstopmode", base+".tex")
 					cmd.Dir = tmpDir
 					pdfOut, pdfErr := cmd.CombinedOutput()

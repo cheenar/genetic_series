@@ -1,3 +1,4 @@
+.DS_Store 
 # Build output
 genetic_series
 eval
@@ -15,3 +16,7 @@ go.sum
 .idea/
 .vscode/
 *.swp
+
+# Bazel
+/bazel-*
+MODULE.bazel.lock

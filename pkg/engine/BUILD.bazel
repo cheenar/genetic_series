@@ -1,0 +1,28 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "engine",
+    srcs = [
+        "config.go",
+        "engine.go",
+        "output.go",
+    ],
+    importpath = "github.com/wildfunctions/genetic_series/pkg/engine",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/constants",
+        "//pkg/pool",
+        "//pkg/series",
+        "//pkg/strategy",
+    ],
+)
+
+go_test(
+    name = "engine_test",
+    srcs = ["engine_test.go"],
+    embed = [":engine"],
+    deps = [
+        "//pkg/pool",
+        "//pkg/strategy",
+    ],
+)

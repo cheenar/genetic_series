@@ -1,0 +1,27 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "genetic_series_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/wildfunctions/genetic_series",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/constants",
+        "//pkg/engine",
+        "//pkg/pool",
+        "//pkg/strategy",
+    ],
+)
+
+go_binary(
+    name = "genetic_series",
+    embed = [":genetic_series_lib"],
+    data = ["@texlive//:pdflatex"],
+    env = {"PDFLATEX_PATH": "$(rootpath @texlive//:pdflatex)"},
+    args = [
+        "-population", "1000",
+        "-maxterms", "512",
+        "-seed", "0",
+    ],
+    visibility = ["//visibility:public"],
+)

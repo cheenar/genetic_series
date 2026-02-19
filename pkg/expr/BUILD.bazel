@@ -1,0 +1,27 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "expr",
+    srcs = [
+        "clone.go",
+        "complexity.go",
+        "eval.go",
+        "eval_f64.go",
+        "node.go",
+        "parse_latex.go",
+        "print.go",
+        "simplify.go",
+    ],
+    importpath = "github.com/wildfunctions/genetic_series/pkg/expr",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "expr_test",
+    srcs = [
+        "eval_f64_test.go",
+        "expr_test.go",
+        "parse_latex_test.go",
+    ],
+    embed = [":expr"],
+)

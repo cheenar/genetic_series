@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "pool",
+    srcs = [
+        "conservative.go",
+        "kitchensink.go",
+        "moderate.go",
+        "pool.go",
+    ],
+    importpath = "github.com/wildfunctions/genetic_series/pkg/pool",
+    visibility = ["//visibility:public"],
+    deps = ["//pkg/expr"],
+)
+
+go_test(
+    name = "pool_test",
+    srcs = ["pool_test.go"],
+    embed = [":pool"],
+)
